@@ -1,33 +1,32 @@
-use std::io::Error;
-use std::io::ErrorKind;
+use zbus::{Connection, zvariant::OwnedObjectPath};
 
-use evdev::{Device, InputEvent, uinput::VirtualDevice};
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // TODO do we need this?
+    let connection = Connection::system().await?;
+    let proxy = zbus::Proxy::new(
+        &connection,
+        "org.freedesktop.ratbag1",
+        "/org/freedesktop/ratbag1",
+        "org.freedesktop.ratbag1.Manager",
+    )
+    .await?;
 
-const VRT_DEVICE_NAME: &str = "LG600_VRT_KEYBOARD";
+    let list: Vec<OwnedObjectPath> = proxy.get_property("Devices").await?;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut device: Device = Device::open("/dev/input/event10")?;
-    device.grab()?;
+    // TODO the path is derived from the list, we need to grab that somehow.
+    let device_proxy = zbus::Proxy::new(
+        &connection,
+        "org.freedesktop.ratbag1",
+        "/org/freedesktop/ratbag1/device/hidraw7",
+        "org.freedesktop.ratbag1.Device",
+    )
+    .await?;
 
-    let mut vrt_device: VirtualDevice = create_virt_device(&device)?;
+    let name: String = device_proxy.get_property("Name").await?;
+    let model: String = device_proxy.get_property("Model").await?;
 
-    loop {
-        for event in device.fetch_events().unwrap() {
-            let mod_event = InputEvent::new(event.event_type().0, event.code(), event.value());
-            // TODO maybe handle errors somehow, also batch events?
-            let _ = vrt_device.emit(&[mod_event]);
-        }
-    }
-}
-
-fn create_virt_device(real_device: &Device) -> Result<VirtualDevice, Error> {
-    let keys = real_device
-        .supported_keys()
-        .ok_or_else(|| Error::new(ErrorKind::Other, "Failed to get keys from device."))?;
-
-    let builder = evdev::uinput::VirtualDevice::builder()?
-        .name(VRT_DEVICE_NAME)
-        .with_keys(keys)?;
-
-    builder.build()
+    println!("{:?}", name);
+    println!("{:?}", model);
+    Ok(())
 }
