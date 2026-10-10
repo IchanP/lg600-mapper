@@ -3,7 +3,7 @@ use std::io::ErrorKind;
 
 use evdev::{Device, InputEvent, uinput::VirtualDevice};
 
-const VRT_DEVICE_NAME: &str = "LG600_VIRT_KEYBOARD";
+const VRT_DEVICE_NAME: &str = "LG600_VRT_KEYBOARD";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut device: Device = Device::open("/dev/input/event10")?;
