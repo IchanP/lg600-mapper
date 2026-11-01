@@ -17,15 +17,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let model: String = device.get_property("Model").await?;
     let profiles: Vec<OwnedObjectPath> = device.get_property("Profiles").await?;
 
-    // println!("{:?}", profiles);
     println!("{:?}", name);
     println!("{:?}", model);
 
-    let profile = make_proxy(&connection, &profiles[2], "Profile").await?;
+    let profile = make_proxy(&connection, &profiles[1], "Profile").await?;
+    // let active: bool = profile.get_property("IsActive").await?;
+    // println!("{:?}", active);
 
     let buttons: Vec<OwnedObjectPath> = profile.get_property("Buttons").await?;
 
-    for button in buttons.into_iter() {
+    for button in buttons[8..20].into_iter() {
         let butt = make_proxy(&connection, &button, "Button").await?;
 
         let index: u32 = butt.get_property("Index").await?;
