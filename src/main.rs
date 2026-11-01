@@ -1,4 +1,5 @@
-use zbus::{Connection, Proxy, zvariant::OwnedObjectPath};
+use evdev::KeyCode;
+use zbus::{Connection, Proxy, zvariant::OwnedObjectPath, zvariant::OwnedValue, zvariant::Value};
 
 const DESTINATION: &str = "org.freedesktop.ratbag1";
 
@@ -23,11 +24,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let profile = make_proxy(&connection, &profiles[2], "Profile").await?;
 
     let buttons: Vec<OwnedObjectPath> = profile.get_property("Buttons").await?;
-    // println!("{:?}", buttons);
-    let button_one = make_proxy(&connection, &buttons[1], "Profile").await?;
 
-    let description = button_one.introspect().await?;
-    println!("{:?}", description);
+    for button in buttons.into_iter() {
+        let butt = make_proxy(&connection, &button, "Button").await?;
+
+        let index: u32 = butt.get_property("Index").await?;
+        let (ty, val): (u32, OwnedValue) = butt.get_property("Mapping").await?;
+        // unwrap the extra variant layer
+        let v: &Value = match &*val {
+            Value::Value(inner) => inner,
+            other => other,
+        };
+
+        match v {
+            Value::U32(n) => println!("button {index}: type {ty}, value {n}"),
+            Value::Array(arr) => {
+                let keys: Vec<String> = arr
+                    .iter()
+                    .filter_map(|e| match e {
+                        Value::Structure(s) => match s.fields() {
+                            [Value::U32(1), Value::U32(k)] => {
+                                Some(format!("{:?} ({k})", KeyCode::new(*k as u16)))
+                            }
+                            _ => None,
+                        },
+                        _ => None,
+                    })
+                    .collect();
+                println!("button {index}: macro {}", keys.join(" + "));
+            }
+            other => println!("button {index}: type {ty}, {other:?}"),
+        }
+    }
 
     Ok(())
 }
